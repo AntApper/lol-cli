@@ -80,8 +80,13 @@ const createLoadingScreen = (screen) => {
   });
 
   return {
+    // Update progress bar and/or message.
+    // - progress: number (0-100) to set progress, or null/undefined to skip progress update
+    // - msg: optional string to update the loading message
     update: (progress, msg) => {
-      progressBar.setProgress(progress);
+      if (progress !== null && progress !== undefined) {
+        progressBar.setProgress(progress);
+      }
       if (msg) {
         message.setContent(msg);
       }

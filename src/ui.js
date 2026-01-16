@@ -37,31 +37,30 @@ const formatSummary = (summoner, matches) => {
   const labels = ["Win Rate:", "Overall KDA:", "Most Played:", "Time Played:"];
   const longestLabel = Math.max(...labels.map(l => l.length));
 
-  return `{bold}{green-fg}Last ${matches.length} Games Summary:{/green-fg}{/bold}\n` +
-         `${labels[0].padEnd(longestLabel)} {bold}${winRate}%{/bold}\n` +
+  return `${labels[0].padEnd(longestLabel)} {bold}${winRate}%{/bold}\n` +
          `${labels[1].padEnd(longestLabel)} {bold}${overallKda}{/bold}\n` +
          `${labels[2].padEnd(longestLabel)} {bold}${mostPlayed}{/bold}\n` +
          `${labels[3].padEnd(longestLabel)} {bold}${timePlayed}{/bold}`;
 };
 
 const colorizeRank = (rank) => {
-    if (!rank) return 'Unranked';
+    if (!rank) return '{white-fg}Unranked{/white-fg}';
     const tier = rank.split(' ')[0];
     const colors = {
-        'CHALLENGER': 'yellow-fg',
-        'GRANDMASTER': 'red-fg',
-        'MASTER': 'magenta-fg',
-        'DIAMOND': 'cyan-fg',
-        'EMERALD': 'green-fg',
-        'PLATINUM': 'blue-fg',
-        'GOLD': 'yellow-fg',
-        'SILVER': 'white-fg',
-        'BRONZE': '#CD7F32-fg',
-        'IRON': 'grey-fg',
-        'Unranked': 'white-fg'
+        'CHALLENGER': '#f1fa8c',
+        'GRANDMASTER': '#ff5555',
+        'MASTER': '#ff79c6',
+        'DIAMOND': '#8be9fd',
+        'EMERALD': '#50fa7b',
+        'PLATINUM': '#8be9fd',
+        'GOLD': '#f1fa8c',
+        'SILVER': '#f8f8f2',
+        'BRONZE': '#cd7f32',
+        'IRON': '#a9a9a9',
+        'Unranked': '#f8f8f2'
     };
-    const color = colors[tier] || 'white-fg';
-    return `{${color}}${rank}{/${color}}`;
+    const color = colors[tier] || '#f8f8f2';
+    return `{${color}-fg}${rank}{/${color}-fg}`;
 };
 
 const padStringWithTags = (str, length) => {
@@ -199,7 +198,82 @@ const createXAxis = (durationMinutes, width) => {
 };
 
 
+const formatRankedInfo = (rankedData) => {
+  const soloQueue = rankedData?.find(q => q.queueType === 'RANKED_SOLO_5x5');
+  const flexQueue = rankedData?.find(q => q.queueType === 'RANKED_FLEX_SR');
+
+  const formatQueue = (queue, name) => {
+    if (!queue) {
+      return `{bold}${name}:{/bold} Unranked`;
+    }
+    const division = ['MASTER', 'GRANDMASTER', 'CHALLENGER'].includes(queue.tier) ? '' : ` ${queue.rank}`;
+    const colorizedRank = colorizeRank(`${queue.tier}${division}`);
+    const lp = `${queue.leaguePoints} LP`;
+    const wins = queue.wins;
+    const losses = queue.losses;
+    const winRate = (wins + losses) > 0 ? ((wins / (wins + losses)) * 100).toFixed(0) : '0';
+    return `{bold}${name}:{/bold} ${colorizedRank} - ${lp}\n${wins}W ${losses}L (${winRate}%)`;
+  };
+
+  return formatQueue(soloQueue, 'Solo/Duo') + '\n\n' + formatQueue(flexQueue, 'Flex');
+};
+
+const formatChampionStats = (matches, puuid) => {
+  const champStats = {};
+
+  matches.forEach(match => {
+    const participant = match.details.info.participants.find(p => p.puuid === puuid);
+    if (participant) {
+      const name = participant.championName;
+      if (!champStats[name]) {
+        champStats[name] = { games: 0, wins: 0, kills: 0, deaths: 0, assists: 0 };
+      }
+      champStats[name].games++;
+      if (participant.win) champStats[name].wins++;
+      champStats[name].kills += participant.kills;
+      champStats[name].deaths += participant.deaths;
+      champStats[name].assists += participant.assists;
+    }
+  });
+
+  const sorted = Object.entries(champStats)
+    .sort((a, b) => b[1].games - a[1].games)
+    .slice(0, 5);
+
+  if (sorted.length === 0) return 'No champion data available';
+
+  const header = 'Champion'.padEnd(14) + 'Games'.padEnd(7) + 'Win%'.padEnd(7) + 'KDA';
+  const lines = sorted.map(([name, stats]) => {
+    const games = stats.games || 1; // Defensive check for division by zero
+    const winRate = ((stats.wins / games) * 100).toFixed(0) + '%';
+    const avgK = (stats.kills / games).toFixed(1);
+    const avgD = (stats.deaths / games).toFixed(1);
+    const avgA = (stats.assists / games).toFixed(1);
+    const winColor = stats.wins / games >= 0.5 ? 'green' : 'red';
+    return `${name.padEnd(14)}${String(stats.games).padEnd(7)}{${winColor}-fg}${winRate.padEnd(7)}{/${winColor}-fg}${avgK}/${avgD}/${avgA}`;
+  });
+
+  return `{bold}${header}{/bold}\n${lines.join('\n')}`;
+};
+
+const formatMasteryDisplay = (masteries, championMap) => {
+  if (!masteries || masteries.length === 0) return 'No mastery data available';
+
+  const lines = masteries.map((m, index) => {
+    const champName = championMap?.get(String(m.championId)) || `Champion ${m.championId}`;
+    const level = `Lvl ${m.championLevel}`;
+    const points = m.championPoints.toLocaleString() + ' pts';
+    return `${(index + 1)}. ${champName.padEnd(14)} ${level.padEnd(6)} ${points}`;
+  });
+
+  return lines.join('\n');
+};
+
 module.exports = {
   formatSummary,
   formatMatchDetails,
+  formatRankedInfo,
+  formatChampionStats,
+  formatMasteryDisplay,
+  colorizeRank,
 };
