@@ -1,6 +1,11 @@
 const blessed = require('blessed');
+const { detectRegionFromRiotId } = require('./utils');
 
-const createSearchScreen = () => {
+const REGIONS = ['NA1', 'KR', 'EUW1', 'EUN1', 'JP1', 'BR1', 'LA1', 'LA2', 'OC1', 'RU', 'TR1'];
+
+const createSearchScreen = (defaults = {}, options = {}) => {
+  const { accountCount = 0 } = options;
+
   return new Promise((resolve) => {
     const screen = blessed.screen({
       smartCSR: true,
@@ -42,6 +47,19 @@ const createSearchScreen = () => {
         bold: true,
       },
     });
+
+    // Account indicator (if monitored accounts exist)
+    if (accountCount > 0) {
+      blessed.text({
+        parent: layout,
+        top: 1,
+        right: 1,
+        content: `${accountCount} account${accountCount > 1 ? 's' : ''} saved`,
+        style: {
+          fg: colors.yellow,
+        },
+      });
+    }
 
     const form = blessed.form({
       parent: layout,
@@ -109,7 +127,7 @@ const createSearchScreen = () => {
       height: 3,
       top: 4,
       left: 15,
-      items: ['NA1', 'KR', 'EUW1', 'EUN1', 'JP1', 'BR1', 'LA1', 'LA2', 'OC1', 'RU', 'TR1'],
+      items: REGIONS,
       mouse: true,
       keys: true,
       lockKeys: true,
@@ -177,6 +195,18 @@ const createSearchScreen = () => {
       },
     });
 
+    // Auto-detect status message
+    const autoDetectStatus = blessed.text({
+      parent: form,
+      top: 4,
+      right: 3,
+      content: '',
+      tags: true,
+      style: {
+        fg: colors.green,
+      },
+    });
+
     // Footer with key hints
     blessed.text({
       parent: layout,
@@ -188,9 +218,32 @@ const createSearchScreen = () => {
       },
     });
 
+    if (defaults.riotId) {
+      riotIdInput.setValue(defaults.riotId);
+    }
+    if (defaults.region) {
+      const regionIndex = REGIONS.indexOf(defaults.region);
+      if (regionIndex !== -1) {
+        regionList.select(regionIndex);
+      }
+    }
+
     riotIdInput.focus();
 
     riotIdInput.key('enter', () => {
+      const riotId = riotIdInput.getValue();
+      const detectedRegion = detectRegionFromRiotId(riotId);
+      if (detectedRegion) {
+        const regionIndex = REGIONS.indexOf(detectedRegion);
+        if (regionIndex !== -1) {
+          regionList.select(regionIndex);
+          autoDetectStatus.setContent(`(Auto: ${detectedRegion})`);
+          screen.render();
+        }
+      } else {
+        autoDetectStatus.setContent('');
+        screen.render();
+      }
       regionList.focus();
     });
 

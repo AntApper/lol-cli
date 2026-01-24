@@ -109,7 +109,7 @@ const createMasteryScreen = (parentScreen, summoner, championName, masteryData) 
         width: '90%',
         top: 10,
         left: 'center',
-        content: '{center}{bold}b{/bold}=Back{/center}',
+        content: '{center}{bold}b{/bold}/{bold}backspace{/bold}=Back{/center}',
         tags: true,
     });
 
@@ -117,7 +117,7 @@ const createMasteryScreen = (parentScreen, summoner, championName, masteryData) 
     parentScreen.render();
 
     modal.on('keypress', (ch, key) => {
-      if (['escape', 'q', 'b'].includes(key.name)) {
+      if (['escape', 'q', 'b', 'backspace'].includes(key.name)) {
         modal.destroy();
         parentScreen.render();
         resolve();

@@ -8,6 +8,32 @@ const formatTimestamp = (timestamp) => {
 };
 
 const createTimelineScreen = async (parentScreen, match) => {
+  // Guard against missing timeline data (can occur when API fetch fails)
+  if (!match.timeline?.info?.frames) {
+    return new Promise((resolve) => {
+      const modal = blessed.box({
+        parent: parentScreen,
+        top: 'center',
+        left: 'center',
+        width: 40,
+        height: 7,
+        border: 'line',
+        label: ' {bold}Timeline{/bold} ',
+        tags: true,
+        grabKeys: true,
+        keys: true,
+        content: '\n  Timeline data unavailable.\n  Press any key to close.',
+      });
+      modal.key(['escape', 'q', 'b', 'backspace', 'enter', 'space'], () => {
+        modal.destroy();
+        parentScreen.render();
+        resolve();
+      });
+      modal.focus();
+      parentScreen.render();
+    });
+  }
+
   const championData = await getChampionData();
   const championMap = new Map(Object.values(championData.data).map(c => [c.id, c.name]));
   const participantMap = new Map(match.details.info.participants.map(p => [p.participantId, { name: p.summonerName, champion: championMap.get(p.championName), teamId: p.teamId }]));
@@ -52,7 +78,7 @@ const createTimelineScreen = async (parentScreen, match) => {
       left: 'center',
       width: '100%-2',
       height: 1,
-      content: '{center}{bold}b{/bold}=Back | {bold}q{/bold}=Quit{/center}',
+      content: '{center}{bold}b{/bold}/{bold}backspace{/bold}=Back | {bold}q{/bold}=Quit{/center}',
       tags: true,
     });
 
@@ -131,7 +157,7 @@ const createTimelineScreen = async (parentScreen, match) => {
         eventLog.scrollTo(0);
     }, 0);
 
-    eventLog.key(['escape', 'q', 'b'], () => {
+    eventLog.key(['escape', 'q', 'b', 'backspace'], () => {
       modal.destroy();
       parentScreen.render();
       resolve();
